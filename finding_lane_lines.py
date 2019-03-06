@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-def canny(image):
+def create_gradient_image(image):
 	'''
 	Converts a colour image to a gradient image using the canny algorithm
 	'''
@@ -11,12 +11,12 @@ def canny(image):
 	# Apply Gaussian blur to reduce noise from image (NB: canny will do this by default)
 	blur = cv2.GaussianBlur(gray, (5,5), 0)
 	# Apply canny algorithm to find high changes in gradient
-	canny = cv2.Canny(blur, 50, 150)
-	return canny
+	gradient_image = cv2.Canny(blur, 50, 150)
+	return gradient_image
 
 def region_of_interest(image):
 	'''
-	Creates a triangular region of interest with zero values outside the triangle
+	Isolates a triangular region of interest with zero values outside the triangle and the image inside
 	'''
 	height = image.shape[0]
 	# Define triangle vertices
@@ -31,14 +31,32 @@ def region_of_interest(image):
 	masked_image = cv2.bitwise_and(image,mask)
 	return masked_image
 
+def display_lines(image,lines):
+	'''
+	Plots lines on black background the size of image 
+	'''
+	line_image = np.zeros_like(image)
+	if lines is not None:
+		for line in lines:
+			x1, y1, x2, y2 = line.reshape(4)
+			cv2.line(line_image,(x1,y1),(x2,y2),(255,0,0),10)
+	return line_image
 
 
 
 image = cv2.imread('test_image.jpg')
 lane_image = np.copy(image)
-canny = canny(lane_image)
-cropped_image = region_of_interest(canny)
+gradient_image = create_gradient_image(lane_image)
+cropped_image = region_of_interest(gradient_image)
+# Identify lines using Hough space
+lines = cv2.HoughLinesP(cropped_image,2,np.pi/180,100,np.array([]),minLineLength=40,maxLineGap=5)
+line_image = display_lines(lane_image,lines)
+combo_image = cv2.addWeighted(lane_image, 0.8, line_image, 1, 1)
 
-# Show image
-cv2.imshow('result', cropped_image)
+# Show original image
+cv2.imshow('result', lane_image)
+cv2.waitKey(0)
+
+# Show image with identified lane markers
+cv2.imshow('result', combo_image)
 cv2.waitKey(0)
