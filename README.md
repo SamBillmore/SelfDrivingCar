@@ -5,6 +5,9 @@
 *finding_lane_lines.py*
 - Contains code for identifying straight lane lines from an image of a road, taken from the perspective of a car.
 
+*Images_and_videos* directory
+- Contains the image and video used in the `finding_lane_lines.py` script.
+
 ### To run the code
 
 *finding_lane_lines.py*
