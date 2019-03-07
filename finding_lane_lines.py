@@ -89,7 +89,7 @@ def display_lines(image,lines):
 	return line_image
 
 
-image = cv2.imread('test_image.jpg')
+image = cv2.imread('./Images_and_videos/test_image.jpg')
 lane_image = np.copy(image)
 gradient_image = create_gradient_image(lane_image)
 cropped_image = region_of_interest(gradient_image,v1=(0.15,1),v2=(0.86,1),v3=(0.43,0.36))
