@@ -114,6 +114,9 @@ def lane_finder(image):
 
 def show_steps_for_image(image):
 	'''
+	Shows images from each step of the algorithm for a single image
+
+	Images are shown until a key is pressed
 	'''
 	gradient_image, cropped_image, line_image, average_line_image, combo_image = lane_finder(image)
 	# Show original image
@@ -150,9 +153,12 @@ show_steps_for_image(lane_image)
 video = cv2.VideoCapture('./Images_and_videos/test2.mp4')
 while(video.isOpened()):
 	_, frame = video.read()
-	_, _, _, _, frame_combo_image = lane_finder(frame)
-	cv2.imshow('result', frame_combo_image)
-	if cv2.waitKey(1) == ord('q'):
+	if frame is not None:
+		_, _, _, _, frame_combo_image = lane_finder(frame)
+		cv2.imshow('result', frame_combo_image)
+		if cv2.waitKey(1) == ord('q'):
+			break
+	else:
 		break
 video.release()
 cv2.destroyAllWindows()
