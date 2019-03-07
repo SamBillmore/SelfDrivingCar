@@ -14,22 +14,68 @@ def create_gradient_image(image):
 	gradient_image = cv2.Canny(blur, 50, 150)
 	return gradient_image
 
-def region_of_interest(image):
+def region_of_interest(image,v1:(float,float),v2:(float,float),v3:(float,float)):
+    '''
+    Isolates a triangular region of interest with zero values outside the triangle and the image inside
+    
+    Vertices of triangle are defined by tuples by reference to the proportion of:
+    - width (measured from the left of the image) and 
+    - height (measured from the top of the image)
+    
+    Examples:
+    v1 = (1,1) => this vertex would be in the bottom right hand corner of the image
+    v2 = (0.5,0.5) => this vertex would be in the centre of the image
+    v3 = (0.25,0.75) => this vertex would be 1/4 of the way from the left of the image and
+        3/4 of the way from the top of the image
+    '''
+    height = image.shape[0]
+    width = image.shape[1]
+    # Define triangle using vertices
+    polygons = np.array([
+        [(int(v1[0]*width),int(v1[1]*height)),(int(v2[0]*width),int(v2[1]*height)),(int(v3[0]*width),int(v3[1]*height))]
+    ])
+    # Create np array of same size as image with zeros in all positions 
+    mask = np.zeros_like(image)
+    # Set area within triangle to be white
+    cv2.fillPoly(mask,polygons,255)
+    # Apply mask to image using bitwise '&'
+    masked_image = cv2.bitwise_and(image,mask)
+    return masked_image
+
+def make_line(image,line_parameters,proportion):
 	'''
-	Isolates a triangular region of interest with zero values outside the triangle and the image inside
+	Identifies end points for a line starting at the bottom of the image with:
+	- slope and intercept defined by line_parameters
+	- length of line defined by proportion, being the proportion of the height measured from the top of the image the line should reach
 	'''
+	slope, intercept = line_parameters
 	height = image.shape[0]
-	# Define triangle vertices
-	polygons = np.array([
-		[(200,height),(1100,height),(550,250)]
-		])
-	# Create np array of same size as image with zeros in all positions 
-	mask = np.zeros_like(image)
-	# Set area within triangle to be white
-	cv2.fillPoly(mask,polygons,255)
-	# Apply mask to image using bitwise '&'
-	masked_image = cv2.bitwise_and(image,mask)
-	return masked_image
+	y1 = height
+	y2 = int(y1*proportion)
+	x1 = int((y1-intercept)/slope)
+	x2 = int((y2-intercept)/slope)
+	return np.array([x1,y1,x2,y2])
+
+def average_slope_intercept(image,lines):
+	'''
+	Creates end points for two lines, one from the average lines with positive slope and one from the average lines with negative slope
+	'''
+	left_fit = []
+	right_fit = []
+	for line in lines:
+		x1, y1, x2, y2 = line.reshape(4)
+		parameters = np.polyfit((x1,x2),(y1,y2),1)
+		slope = parameters[0]
+		intercept = parameters[1]
+		if slope < 0:
+			left_fit.append((slope,intercept))
+		else:
+			right_fit.append((slope,intercept))
+	left_fit_average = np.average(left_fit, axis=0)
+	right_fit_average = np.average(right_fit, axis=0)
+	left_line = make_line(image,left_fit_average,0.6)
+	right_line = make_line(image,right_fit_average,0.6)
+	return np.array([left_line,right_line])
 
 def display_lines(image,lines):
 	'''
@@ -43,20 +89,37 @@ def display_lines(image,lines):
 	return line_image
 
 
-
 image = cv2.imread('test_image.jpg')
 lane_image = np.copy(image)
 gradient_image = create_gradient_image(lane_image)
-cropped_image = region_of_interest(gradient_image)
+cropped_image = region_of_interest(gradient_image,v1=(0.15,1),v2=(0.86,1),v3=(0.43,0.36))
 # Identify lines using Hough space
 lines = cv2.HoughLinesP(cropped_image,2,np.pi/180,100,np.array([]),minLineLength=40,maxLineGap=5)
 line_image = display_lines(lane_image,lines)
-combo_image = cv2.addWeighted(lane_image, 0.8, line_image, 1, 1)
+averaged_lines = average_slope_intercept(lane_image,lines)
+average_line_image = display_lines(lane_image,averaged_lines)
+combo_image = cv2.addWeighted(lane_image, 0.8, average_line_image, 1, 1)
 
 # Show original image
 cv2.imshow('result', lane_image)
 cv2.waitKey(0)
 
-# Show image with identified lane markers
+# Show gradient image
+cv2.imshow('result', gradient_image)
+cv2.waitKey(0)
+
+# Show cropped gradient image
+cv2.imshow('result', cropped_image)
+cv2.waitKey(0)
+
+# Show lines identified
+cv2.imshow('result', line_image)
+cv2.waitKey(0)
+
+# Show averaged lines identified
+cv2.imshow('result', average_line_image)
+cv2.waitKey(0)
+
+# Show original image with identified lane markers
 cv2.imshow('result', combo_image)
 cv2.waitKey(0)
