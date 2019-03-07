@@ -59,6 +59,8 @@ def make_line(image,line_parameters,proportion):
 def average_slope_intercept(image,lines):
 	'''
 	Creates end points for two lines, one from the average lines with positive slope and one from the average lines with negative slope
+
+	If there are no lines identified with positive slope or no lines with negative slope then the default position is 0,0
 	'''
 	left_fit = []
 	right_fit = []
@@ -71,10 +73,16 @@ def average_slope_intercept(image,lines):
 			left_fit.append((slope,intercept))
 		else:
 			right_fit.append((slope,intercept))
-	left_fit_average = np.average(left_fit, axis=0)
-	right_fit_average = np.average(right_fit, axis=0)
-	left_line = make_line(image,left_fit_average,0.6)
-	right_line = make_line(image,right_fit_average,0.6)
+	if len(left_fit) > 0:
+		left_fit_average = np.average(left_fit, axis=0)
+		left_line = make_line(image,left_fit_average,0.6)
+	else:
+		left_line = [0,0,0,0]
+	if len(right_fit) > 0:
+		right_fit_average = np.average(right_fit, axis=0)
+		right_line = make_line(image,right_fit_average,0.6)
+	else:
+		right_line = [0,0,0,0]
 	return np.array([left_line,right_line])
 
 def display_lines(image,lines):
@@ -89,37 +97,62 @@ def display_lines(image,lines):
 	return line_image
 
 
-image = cv2.imread('./Images_and_videos/test_image.jpg')
-lane_image = np.copy(image)
-gradient_image = create_gradient_image(lane_image)
-cropped_image = region_of_interest(gradient_image,v1=(0.15,1),v2=(0.86,1),v3=(0.43,0.36))
-# Identify lines using Hough space
-lines = cv2.HoughLinesP(cropped_image,2,np.pi/180,100,np.array([]),minLineLength=40,maxLineGap=5)
-line_image = display_lines(lane_image,lines)
-averaged_lines = average_slope_intercept(lane_image,lines)
-average_line_image = display_lines(lane_image,averaged_lines)
-combo_image = cv2.addWeighted(lane_image, 0.8, average_line_image, 1, 1)
+def lane_finder(image):
+	'''
+	Takes an image and identifies the straight lines within a defined area of interest
+	Returns images from each stage of the algorithm
+	'''
+	gradient_image = create_gradient_image(image)
+	cropped_image = region_of_interest(gradient_image,v1=(0.15,1),v2=(0.86,1),v3=(0.43,0.36))
+	# Identify lines using Hough space
+	lines = cv2.HoughLinesP(cropped_image,2,np.pi/180,100,np.array([]),minLineLength=40,maxLineGap=5)
+	line_image = display_lines(image,lines)
+	averaged_lines = average_slope_intercept(image,lines)
+	average_line_image = display_lines(image,averaged_lines)
+	combo_image = cv2.addWeighted(image, 0.8, average_line_image, 1, 1)
+	return gradient_image, cropped_image, line_image, average_line_image, combo_image
 
-# Show original image
-cv2.imshow('result', lane_image)
-cv2.waitKey(0)
+def show_steps_for_image(image):
+	'''
+	'''
+	gradient_image, cropped_image, line_image, average_line_image, combo_image = lane_finder(image)
+	# Show original image
+	cv2.imshow('result', image)
+	cv2.waitKey(0)
 
-# Show gradient image
-cv2.imshow('result', gradient_image)
-cv2.waitKey(0)
+	# Show gradient image
+	cv2.imshow('result', gradient_image)
+	cv2.waitKey(0)
 
-# Show cropped gradient image
-cv2.imshow('result', cropped_image)
-cv2.waitKey(0)
+	# Show cropped gradient image
+	cv2.imshow('result', cropped_image)
+	cv2.waitKey(0)
 
-# Show lines identified
-cv2.imshow('result', line_image)
-cv2.waitKey(0)
+	# Show lines identified
+	cv2.imshow('result', line_image)
+	cv2.waitKey(0)
 
-# Show averaged lines identified
-cv2.imshow('result', average_line_image)
-cv2.waitKey(0)
+	# Show averaged lines identified
+	cv2.imshow('result', average_line_image)
+	cv2.waitKey(0)
 
-# Show original image with identified lane markers
-cv2.imshow('result', combo_image)
-cv2.waitKey(0)
+	# Show original image with identified lane markers
+	cv2.imshow('result', combo_image)
+	cv2.waitKey(0)
+
+
+# Apply lane finding algorithm to a single image
+source_image = cv2.imread('./Images_and_videos/test_image.jpg')
+lane_image = np.copy(source_image)
+show_steps_for_image(lane_image)
+
+# Apply lane finding algorithm to a video
+video = cv2.VideoCapture('./Images_and_videos/test2.mp4')
+while(video.isOpened()):
+	_, frame = video.read()
+	_, _, _, _, frame_combo_image = lane_finder(frame)
+	cv2.imshow('result', frame_combo_image)
+	if cv2.waitKey(1) == ord('q'):
+		break
+video.release()
+cv2.destroyAllWindows()
