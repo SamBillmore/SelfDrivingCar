@@ -1,4 +1,8 @@
-# Work in progress - code for a basic self driving car algorithm
+# Work in progress
+
+# Code for a basic self driving car algorithm
+
+Fun project to try out image recognition and convoluted neural networks.
 
 ### Files included in this repository
 
